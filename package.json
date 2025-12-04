@@ -1,0 +1,55 @@
+{
+  "name": "@on-the-ground/task-tree-js",
+  "version": "0.1.0",
+  "description": "Task-oriented programming DSL with lazy evaluation and execution strategies",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/task.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/task.d.ts",
+      "import": "./dist/task.mjs",
+      "require": "./dist/task.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "npm run build:types && npm run build:bundle",
+    "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist",
+    "build:bundle": "tsup task.ts --format esm,cjs --dts --clean",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "task",
+    "dsl",
+    "lazy-evaluation",
+    "async",
+    "workflow",
+    "retry",
+    "timeout",
+    "strategy-pattern",
+    "browser",
+    "node"
+  ],
+  "author": "on-the-ground",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/on-the-ground/task-tree-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/on-the-ground/task-tree-js/issues"
+  },
+  "homepage": "https://github.com/on-the-ground/task-tree-js#readme",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  }
+}
