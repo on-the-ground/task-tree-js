@@ -1,9 +1,10 @@
 import { describe, test, expect } from "vitest";
-import { leaf, sequence, parallel, squashTree } from "./task";
+import { leaf, sequence, parallel, leafChainOf } from "./task";
+import { retry, timeout } from "./sample-strategy";
 
 describe("Task DSL", () => {
   test("basic sequence and parallel execution", async () => {
-    const result = await squashTree(
+    const program = leafChainOf(
       sequence("rootask", [
         sequence("task1_1", [
           leaf("task2_1", async (i: string) => i + "task2_1"),
@@ -14,8 +15,9 @@ describe("Task DSL", () => {
         ]),
         leaf("task1_2", async (i: object) => JSON.stringify(i) + "task1_2"),
       ])
-    ).task("start: ");
+    );
 
+    const result = await program("start: ");
     expect(result).toBe(
       '{"p1":"start: task2_1p1","p2":"start: task2_1p2"}task1_2'
     );
@@ -24,7 +26,7 @@ describe("Task DSL", () => {
   test("retry strategy - should retry failed tasks", async () => {
     let attemptCount = 0;
 
-    const result = await squashTree(
+    const program = leafChainOf(
       sequence(
         "root",
         [
@@ -36,35 +38,36 @@ describe("Task DSL", () => {
             return i + " success!";
           }),
         ],
-        { type: "retry", maxAttempts: 3 }
+        retry(3)
       )
-    ).task("retry-test:");
+    );
+
+    const result = await program("retry-test:");
 
     expect(result).toBe("retry-test: success!");
     expect(attemptCount).toBe(3);
   });
 
   test("timeout strategy - should timeout slow tasks", async () => {
-    await expect(
-      squashTree(
-        sequence(
-          "root",
-          [
-            leaf("slow-task", async (i: string) => {
-              await new Promise((resolve) => setTimeout(resolve, 2000));
-              return i + " completed";
-            }),
-          ],
-          { type: "timeout", duration: 1000 }
-        )
-      ).task("timeout-test:")
-    ).rejects.toThrow("Task timeout");
+    const program = leafChainOf(
+      sequence(
+        "root",
+        [
+          leaf("slow-task", async (i: string) => {
+            await new Promise((resolve) => setTimeout(resolve, 2000));
+            return i + " completed";
+          }),
+        ],
+        timeout(1000)
+      )
+    );
+    await expect(program("timeout-test:")).rejects.toThrow("Task timeout");
   });
 
   test("nested strategy - should apply retry only to inner sequence", async () => {
     let nestedAttempt = 0;
 
-    const result = await squashTree(
+    const program = leafChainOf(
       sequence("outer", [
         leaf("task1", async (i: string) => {
           return i + "-t1";
@@ -80,14 +83,15 @@ describe("Task DSL", () => {
               return i + "-t2";
             }),
           ],
-          { type: "retry", maxAttempts: 3 }
+          retry(3)
         ),
         leaf("task3", async (i: string) => {
           return i + "-t3";
         }),
       ])
-    ).task("nested:");
+    );
 
+    const result = await program("nested:");
     expect(result).toBe("nested:-t1-t2-t3");
     expect(nestedAttempt).toBe(2);
   });

@@ -6,7 +6,7 @@ Task-oriented programming DSL with lazy evaluation and execution strategies.
 
 - 🌳 **Task Tree Structure**: Build complex workflows as composable AST nodes
 - 🔄 **Lazy Evaluation**: Separate program structure from execution
-- 🎯 **Execution Strategies**: Built-in retry, timeout, and transactional patterns
+- 🎯 **Pluggable Strategies**: Customizable execution strategies (retry, timeout, etc.)
 - ⚡ **Parallel Execution**: Run tasks concurrently with `parallel()`
 - 🔗 **Sequential Execution**: Chain tasks with `sequence()`
 - 📦 **Universal Support**: Works in Node.js and browsers (ESM & CJS)
@@ -26,7 +26,7 @@ import {
   leaf,
   sequence,
   parallel,
-  squashTree,
+  leafChainOf,
 } from "@on-the-ground/task-tree-js";
 
 // Define tasks
@@ -39,14 +39,19 @@ const workflow = sequence("main", [
   leaf("task3", async (input: object) => JSON.stringify(input)),
 ]);
 
+// Compile to executable function
+const program = leafChainOf(workflow);
+
 // Execute
-const result = await squashTree(workflow).task("start");
+const result = await program("start");
 console.log(result);
 ```
 
 ### Retry Strategy
 
 ```typescript
+import { retry } from "@on-the-ground/task-tree-js/sample-strategy";
+
 const taskWithRetry = sequence(
   "api-call",
   [
@@ -56,15 +61,18 @@ const taskWithRetry = sequence(
       return response.json();
     }),
   ],
-  { type: "retry", maxAttempts: 3 }
+  retry(3) // Retry up to 3 times
 );
 
-const data = await squashTree(taskWithRetry).task("https://api.example.com");
+const program = leafChainOf(taskWithRetry);
+const data = await program("https://api.example.com");
 ```
 
 ### Timeout Strategy
 
 ```typescript
+import { timeout } from "@on-the-ground/task-tree-js/sample-strategy";
+
 const taskWithTimeout = sequence(
   "slow-operation",
   [
@@ -73,13 +81,18 @@ const taskWithTimeout = sequence(
       return processData(data);
     }),
   ],
-  { type: "timeout", duration: 5000 } // 5 seconds
+  timeout(5000) // 5 seconds
 );
+
+const program = leafChainOf(taskWithTimeout);
+const result = await program("input-data");
 ```
 
 ### Nested Strategies
 
 ```typescript
+import { retry } from "@on-the-ground/task-tree-js/sample-strategy";
+
 const complexWorkflow = sequence("main", [
   leaf("step1", async (i: string) => i + "-step1"),
   sequence(
@@ -90,10 +103,13 @@ const complexWorkflow = sequence("main", [
         return riskyCall(i);
       }),
     ],
-    { type: "retry", maxAttempts: 3 }
+    retry(3) // Only this section will retry
   ),
   leaf("step3", async (i: string) => i + "-step3"),
 ]);
+
+const program = leafChainOf(complexWorkflow);
+const result = await program("input");
 ```
 
 ## API
@@ -121,39 +137,73 @@ Execute tasks concurrently with same input.
 - `children`: Array of TaskNode
 - `strategy`: Optional execution strategy
 
-### `squashTree(rootNode)`
+### `leafChainOf(rootNode)`
 
-Squash all task nodes into single executable leaf node.
+Compile task tree into an executable function.
 
-Returns `LeafNode` with `.task(input)` method.
+Returns `(input: I) => Promise<O>` function.
 
 ## Execution Strategies
 
-### Retry
+Strategies are higher-order functions that wrap task execution with additional behavior.
 
-```typescript
-{ type: "retry", maxAttempts: number }
-```
+### Built-in Strategies
+
+Import from `@on-the-ground/task-tree-js/sample-strategy`:
+
+#### `retry(maxAttempts)`
 
 Automatically retry failed tasks.
 
-### Timeout
-
 ```typescript
-{ type: "timeout", duration: number }
+import { retry } from "@on-the-ground/task-tree-js/sample-strategy";
+
+sequence("task", [...tasks], retry(3));
 ```
+
+#### `timeout(duration)`
 
 Cancel tasks exceeding duration (milliseconds).
 
-### Transactional
-
 ```typescript
-{
-  type: "transactional";
-}
+import { timeout } from "@on-the-ground/task-tree-js/sample-strategy";
+
+sequence("task", [...tasks], timeout(5000));
 ```
 
-Placeholder for transactional execution (rollback support).
+### Custom Strategies
+
+The `Strategy` type is a higher-order function interface:
+
+```typescript
+type Strategy = <I, O>(
+  prevPromise: Promise<I>,
+  leaf: LeafNode<I, O>
+) => Promise<O>;
+```
+
+- `prevPromise`: The promise from the previous task in the chain
+- `leaf`: The current leaf node containing the task to execute
+- Returns: A promise of the output type
+
+Create your own strategies by implementing this interface:
+
+```typescript
+import { Strategy, LeafNode } from "@on-the-ground/task-tree-js";
+
+const myStrategy: Strategy = async <I, O>(
+  prevPromise: Promise<I>,
+  leaf: LeafNode<I, O>
+): Promise<O> => {
+  return prevPromise.then(async (input) => {
+    // Add custom logic: logging, caching, error handling, etc.
+    console.log(`Executing: ${leaf.name}`);
+    const result = await leaf.task(input);
+    console.log(`Completed: ${leaf.name}`);
+    return result;
+  });
+};
+```
 
 ## Architecture
 
