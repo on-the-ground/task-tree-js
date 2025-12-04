@@ -22,7 +22,12 @@ npm install @on-the-ground/task-tree-js
 ### Basic Example
 
 ```typescript
-import { leaf, sequence, parallel, merge as squashTree } from "@on-the-ground/task-tree-js";
+import {
+  leaf,
+  sequence,
+  parallel,
+  squashTree,
+} from "@on-the-ground/task-tree-js";
 
 // Define tasks
 const workflow = sequence("main", [
@@ -116,9 +121,9 @@ Execute tasks concurrently with same input.
 - `children`: Array of TaskNode
 - `strategy`: Optional execution strategy
 
-### `merge(rootNode)`
+### `squashTree(rootNode)`
 
-Flatten task tree into single executable leaf node.
+Squash all task nodes into single executable leaf node.
 
 Returns `LeafNode` with `.task(input)` method.
 
@@ -143,7 +148,9 @@ Cancel tasks exceeding duration (milliseconds).
 ### Transactional
 
 ```typescript
-{ type: "transactional" }
+{
+  type: "transactional";
+}
 ```
 
 Placeholder for transactional execution (rollback support).

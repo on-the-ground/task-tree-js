@@ -262,7 +262,7 @@ export class ExecutableLeafTasks {
   }
 }
 
-export const merge = <I, O>(rootNode: TaskNode<I, O>): LeafNode<I, O> => ({
+export const squashTree = <I, O>(rootNode: TaskNode<I, O>): LeafNode<I, O> => ({
   nodeType: "leaf",
   task: ExecutableLeafTasks.flatten(rootNode).execute,
   name: rootNode.name,

@@ -1,5 +1,5 @@
 import { describe, test, expect } from "vitest";
-import { leaf, sequence, parallel, merge as squashTree } from "./task";
+import { leaf, sequence, parallel, squashTree } from "./task";
 
 describe("Task DSL", () => {
   test("basic sequence and parallel execution", async () => {
